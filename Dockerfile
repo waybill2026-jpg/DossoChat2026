@@ -1,18 +1,18 @@
-# SDK Aşaması
+# 1. SDK Aşaması
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Sadece proje dosyasını kopyala ve restore et (Hata almamak için alt klasöre bakmaz)
+# Proje dosyasını kopyala ve restore et
+# (Eğer proje bir klasör içindeyse path'i ona göre düzenlemelisin, 
+# ama ana dizindeyse bu kod çalışır)
 COPY *.csproj ./
 RUN dotnet restore
 
-# Tüm dosyaları kopyala
+# Tüm dosyaları kopyala ve derle
 COPY . .
+RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
 
-# Solution yerine doğrudan projeyi derle (Hata veren kısım burasıydı)
-RUN dotnet publish *.csproj -c Release -o /app/publish
-
-# Runtime Aşaması
+# 2. Runtime Aşaması
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app/publish .
@@ -21,5 +21,7 @@ COPY --from=build /app/publish .
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
-# ENTRYPOINT dinamik hale getirildi (Proje adın neyse o dll çalışır)
-ENTRYPOINT ["sh", "-c", "dotnet $(ls *.dll | head -n 1)"]
+# --- KRİTİK DÜZELTME BURASI ---
+# Proje adın DOSSOCHAT26 olduğu için çıkış DLL adı budur.
+# Manuel yazmak en güvenli yoldur.
+ENTRYPOINT ["dotnet", "DOSSOCHAT26.dll"]
