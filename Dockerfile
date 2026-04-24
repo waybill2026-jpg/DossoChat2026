@@ -1,18 +1,25 @@
-# .NET 8 SDK kullanarak derleme yapıyoruz
+# 1. SDK Aşaması (Derleme)
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /app
+WORKDIR /src
 
-# Proje dosyalarını kopyala ve restore et
-COPY . ./
+# Proje dosyasını kopyala (Dosya adın neyse onu yazar)
+# Eğer proje adın farklıysa *.csproj şeklinde kopyalamak en güvenlisidir
+COPY *.csproj ./
 RUN dotnet restore
 
-# Yayınla (Publish)
-RUN dotnet publish -c Release -o out
+# Kalan her şeyi kopyala ve derle
+COPY . .
+RUN dotnet publish -c Release -o /app/publish
 
-# Çalıştırma ortamı (Runtime)
+# 2. Runtime Aşaması (Çalıştırma)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=build /app/out .
+COPY --from=build /app/publish .
 
-# Projenin DLL adını buraya yaz (DossoChat26.dll olduğunu varsayıyorum)
+# KRİTİK AYAR: .NET 8'in Render'da çalışması için portu zorla
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+
+# DİKKAT: Buradaki DossoChat26.dll kısmını 
+# senin projenin gerçek adıyla (csproj dosyanın adı neyse o) değiştir!
 ENTRYPOINT ["dotnet", "DossoChat26.dll"]
