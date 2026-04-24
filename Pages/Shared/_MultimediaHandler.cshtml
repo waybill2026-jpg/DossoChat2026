@@ -1,0 +1,32 @@
+﻿<!-- Sesli Mesaj Kayıt Göstergesi -->
+<div id="voiceRecordBar" class="bg-dark text-info p-2 border-top border-info shadow" style="display:none; position:absolute; bottom:60px; width:100%; z-index:1500;">
+    <div class="d-flex align-items-center justify-content-between px-3">
+        <div><i class="bi bi-mic-fill animate-pulse text-danger"></i> <span id="recordTimer">00:00</span></div>
+        <div class="text-white small">Kayıt yapılıyor...</div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-danger" onclick="cancelRecord()">İptal</button>
+            <button class="btn btn-sm btn-success" onclick="stopAndSendRecord()">Gönder</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Sesli mesaj altyapı hazırlığı
+    let mediaRecorder;
+    let audioChunks = [];
+
+    async function startVoiceRecord() {
+        $("#voiceRecordBar").fadeIn();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.start();
+        // Zamanlayıcı kodları buraya gelecek...
+    }
+
+    function cancelRecord() {
+        mediaRecorder.stop();
+        $("#voiceRecordBar").fadeOut();
+        audioChunks = [];
+    }
+</script>

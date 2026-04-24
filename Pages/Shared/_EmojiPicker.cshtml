@@ -1,0 +1,12 @@
+﻿<!-- Pages/Shared/_EmojiPicker.cshtml -->
+<div id="emojiBox" class="bg-dark border border-secondary shadow p-2" style="display:none; position:absolute; bottom:70px; left:15px; z-index:2000; width:300px; border-radius:15px;">
+    <div class="d-flex flex-wrap gap-2 overflow-auto" style="max-height:200px;">
+        @{
+            var emojis = new[] { "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😻", "😼", "😽", "🙀", "😿", "😾" };
+            foreach (var e in emojis)
+            {
+                <span class="fs-4 emoji-item" style="cursor:pointer" onclick="addEmoji('@e')">@e</span>
+            }
+        }
+    </div>
+</div>

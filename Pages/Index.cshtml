@@ -1,0 +1,282 @@
+﻿@page
+@model IndexModel
+@{
+    Layout = "_Layout";
+}
+
+@Html.AntiForgeryToken()
+
+<style>
+    /* WhatsApp Dark Tasarımı & Renkler */
+    :root { --civit-mavi: #1A53FF; --koyu-gri: #2C2C2E; --bg-black: #050505; --admin-sari: #FFD700; }
+
+    .msg-out { background: var(--civit-mavi) !important; align-self: flex-end; border-radius: 15px 15px 2px 15px !important; color: white; position: relative; }
+    .msg-in { background: var(--koyu-gri) !important; align-self: flex-start; border-radius: 15px 15px 15px 2px !important; color: white; position: relative; }
+
+    /* Önemli Mesaj Stili */
+    .msg-important .content { color: #ff4444 !important; font-weight: bold !important; }
+
+    .emoji-item { font-size: 32px !important; cursor: pointer; padding: 5px; display: inline-block; transition: 0.2s; }
+    .msg-img-link { cursor: zoom-in; display: block; max-width: 280px; border-radius: 10px; overflow: hidden; }
+    .msg-img-link img { width: 100%; height: auto; }
+
+    /* Context Menu */
+    .ctx-menu {
+        position: fixed; background: #233138; border-radius: 10px; z-index: 5000; display: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); min-width: 160px; border: 1px solid #333;
+    }
+    .ctx-item { padding: 12px 15px; cursor: pointer; color: white; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+    .ctx-item:hover { background: #343f45; color: var(--civit-mavi); }
+
+    /* --- MOBİL GEÇİŞ CSS (KRİTİK) --- */
+    @@media (max-width: 768px) {
+        .chat-sidebar { width: 100%; position: absolute; left: 0; transition: 0.3s; z-index: 10; }
+        .chat-main { width: 100%; position: absolute; left: 100%; transition: 0.3s; z-index: 20; background: #000; }
+
+        /* Bu class eklendiğinde ekran kayacak */
+        .mobile-chat-open .chat-sidebar { left: -100%; }
+        .mobile-chat-open .chat-main { left: 0; }
+    }
+</style>
+
+<div class="chat-container" id="appContainer">
+
+    <!-- SIDEBAR -->
+    <div class="chat-sidebar d-flex flex-column h-100">
+        <div class="p-3 d-flex align-items-center justify-content-between bg-dark border-bottom border-secondary">
+            <div class="d-flex align-items-center" onclick="showSettings()" style="cursor:pointer">
+                <img id="myAvatar" src="/assets/icons/logo.png" width="45" height="45" class="rounded-circle me-2 border border-info object-fit-cover">
+                <div>
+                    <strong class="text-white d-block" id="myName">Yükleniyor...</strong>
+                    <small class="text-info" style="font-size:11px">Profil Ayarları</small>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button id="adminBtn" class="btn btn-sm text-warning p-0" style="display:none;" onclick="showAdminPanel()">
+                    <i class="bi bi-shield-fill-check fs-3"></i>
+                </button>
+                <button class="btn btn-link text-danger p-0 shadow-none" onclick="logout()"><i class="bi bi-door-open fs-4"></i></button>
+            </div>
+        </div>
+
+        <div class="p-2 d-flex gap-2 bg-dark">
+            <button class="btn btn-outline-info btn-sm flex-grow-1" onclick="$('#addContactModal').modal('show')"><i class="bi bi-person-plus"></i> Ekle</button>
+            <button class="btn btn-outline-primary btn-sm flex-grow-1" onclick="showGroupModal()"><i class="bi bi-people"></i> Grup</button>
+        </div>
+
+        <div class="flex-grow-1 overflow-auto bg-black" id="myContactsList">
+            <div class="p-3 d-flex align-items-center border-bottom border-dark" style="cursor:pointer; background:#151e27" onclick="selectChat('Global', 'Genel Sohbet', '/assets/icons/logo.png')">
+                <div class="rounded-circle bg-primary p-2 me-3"><i class="bi bi-globe2 fs-4 text-white"></i></div>
+                <div class="text-white"><strong>Genel Sohbet</strong><br><small class="text-muted">Global Chat</small></div>
+            </div>
+            <div id="dynamicContacts"></div>
+        </div>
+    </div>
+
+    <!-- CHAT MAIN -->
+    <div class="chat-main d-flex flex-column h-100">
+        <!-- HEADER (Mobil Geri Butonu Eklendi) -->
+        <div class="p-2 bg-dark d-flex align-items-center shadow border-bottom border-secondary text-white">
+            <i class="bi bi-arrow-left fs-3 me-2 d-md-none" style="cursor:pointer" onclick="closeChat()"></i>
+            <img id="chatHeaderImg" src="/assets/icons/logo.png" width="40" height="40" class="rounded-circle me-2 border border-info">
+            <div><h6 class="mb-0 fw-bold" id="chatHeaderName">Sohbet Seçin</h6><small class="text-success small">çevrimiçi</small></div>
+        </div>
+
+        <div class="messages-wrapper pswp-gallery flex-grow-1 overflow-auto" id="messageArea" style="background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; background-color: #000;"></div>
+
+        <!-- SES KAYIT BARI -->
+        <div id="voiceRecordBar" class="bg-dark text-info p-3 border-top border-info shadow" style="display:none; position:absolute; bottom:70px; width:100%; z-index:2000;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div><i class="bi bi-mic-fill text-danger animate-pulse fs-4"></i> <span id="recordTimer" class="ms-2 fw-bold">00:00</span></div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-danger px-3" onclick="cancelRecord()">İptal</button>
+                    <button class="btn btn-sm btn-success px-3" onclick="stopAndSendRecord()">Gönder</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- INPUT ALANI -->
+        <div class="p-2 bg-dark d-flex align-items-center border-top border-secondary">
+            <button class="btn text-secondary fs-4" onclick="$('#emojiBox').toggle()"><i class="bi bi-emoji-smile"></i></button>
+            <input type="file" id="fileInp" hidden onchange="uploadMedia()">
+            <button class="btn text-secondary fs-4" onclick="$('#fileInp').click()"><i class="bi bi-paperclip"></i></button>
+            <input type="text" id="msgInput" class="form-control mx-2 bg-black border-secondary text-white shadow-none" placeholder="Mesaj yazın..." onkeypress="if(event.which===13)sendMsg()">
+            <button class="btn btn-outline-info rounded-circle me-2" onclick="startVoiceRecord()"><i class="bi bi-mic-fill"></i></button>
+            <button class="btn btn-primary rounded-circle shadow" onclick="sendMsg()"><i class="bi bi-send-fill"></i></button>
+        </div>
+    </div>
+</div>
+
+<!-- CONTEXT MENU & EMOJI & MODALLAR (Aynı Kalıyor) -->
+<div id="msgContextMenu" class="ctx-menu">
+    <div class="ctx-item" id="ctxCopy"><i class="bi bi-clipboard"></i> Kopyala</div>
+    <div class="ctx-item" id="ctxEdit"><i class="bi bi-pencil"></i> Düzenle</div>
+    <div class="ctx-item" id="ctxImportant"><i class="bi bi-exclamation-octagon"></i> Önemli</div>
+    <div class="ctx-item text-danger border-top border-secondary" id="ctxDelete"><i class="bi bi-trash"></i> Sil</div>
+</div>
+
+<!-- EMOJI BOX -->
+<div id="emojiBox" class="bg-dark border border-secondary shadow p-2" style="display:none; position:absolute; bottom:70px; left:15px; z-index:3000; width:320px; border-radius:15px;">
+    <div class="d-flex flex-wrap gap-1 overflow-auto" style="max-height:200px;">
+        @foreach (var e in new[] {
+                "😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚",
+                "😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🥸","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️",
+                "😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓",
+                "🤗","🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵",
+                "🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠","😈","👿","👹","👺","💀","☠️","👻","👽","👾","🤖",
+                "💩","🔥","✨","⭐","🌟","💫","⚡","💥","💢","💦","💨","🕳️","💣","💬","🗨️","🗯️","💭","❤️","🧡","💛",
+                "💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝","👍","👎","👌","✌️","🤞",
+                "🤟","🤘","👏","🙌","👐","🤲","🙏","✍️","💅","🤳","💪","🦾","🦵","🦶","👂","🦻","👃","🧠","🫀","🫁",
+                "👀","👁️","👅","👄","🫦","👶","🧒","👦","👧","🧑","👱","👨","👩","🧔","👴","👵","🙍","🙎","🙅","🙆",
+                "💃","🕺","🕴️","👯","🧘","🏃","🚶","🧎","🏋️","🚴","🏊","🤸","🤼","🤽","🤾","⛹️","🏌️","🧗","🪂","🏇",
+                "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐻‍❄️","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈","🙉","🙊","🐔",
+                "🐧","🐦","🐤","🐣","🐥","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🪲","🐛","🦋","🐌","🐞","🐜",
+                "🌸","🌼","🌻","🌺","🌹","🌷","🌱","🌲","🌳","🌴","🌵","🌾","🌿","☘️","🍀","🍁","🍂","🍃","🌍","🌎",
+                "🌏","🌕","🌖","🌗","🌘","🌑","🌒","🌓","🌔","🌙","🌚","🌛","🌜","☀️","🌝","🌞","⭐","🌟","🌠","☁️",
+                "⛅","⛈️","🌤️","🌥️","🌦️","🌧️","🌨️","❄️","☃️","⛄","🌬️","💨","💧","💦","☔","🌊"
+                })
+        {
+            <span class="emoji-item" onclick="addEmoji('@e')">@e</span>
+        }
+    </div>
+</div>
+
+<!-- MODALLAR (Admin, Ayarlar vb.) -->
+<div class="modal fade" id="adminPanelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-warning">
+            <div class="modal-header"><h5>Yönetim Paneli</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body">
+                <div class="row g-2 mb-3 bg-black p-2 rounded"><div class="col-md-3"><input type="text" id="admNewName" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="İsim"></div><div class="col-md-3"><input type="email" id="admNewEmail" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Email"></div><div class="col-md-2"><input type="text" id="admNewPass" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Şifre"></div><div class="col-md-2"><select id="admNewRole" class="form-select form-select-sm bg-dark text-white border-secondary"><option value="User">User</option><option value="Admin">Admin</option></select></div><div class="col-md-2"><button class="btn btn-warning btn-sm w-100" onclick="adminCreateUser()">KAYDET</button></div></div>
+                <table class="table table-dark table-sm small"><thead><tr><th>İsim</th><th>Email</th><th>Şifre</th><th>Yetki</th><th>İşlem</th></tr></thead><tbody id="userTable"></tbody></table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-info">
+            <div class="modal-header"><h5>Profil Ayarları</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body text-center">
+                <img id="profPicPreview" src="/assets/icons/logo.png" width="100" height="100" class="rounded-circle border border-info mb-3 object-fit-cover" onclick="$('#profImgInp').click()">
+                <input type="file" id="profImgInp" hidden onchange="previewImg(this)">
+                <input type="text" id="profName" class="form-control bg-black text-white border-secondary mb-2" placeholder="Görünen İsim">
+                <input type="text" id="profPhone" class="form-control bg-black text-white border-secondary mb-2" placeholder="Telefon">
+                <input type="email" id="profEmail" class="form-control bg-dark text-muted border-secondary mb-2" disabled>
+                <input type="password" id="profPass" class="form-control bg-black text-white border-secondary mb-3" placeholder="Yeni Şifre">
+                <button class="btn btn-info w-100 fw-bold" onclick="updateMyProfile()">GÜNCELLE</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addContactModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content bg-dark text-white border-info shadow-lg"><div class="modal-header"><h5>Kişi Ekle</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="email" id="searchEmail" class="form-control bg-black text-white border-secondary mb-3" placeholder="Email adresi..."><button class="btn btn-info w-100 fw-bold" onclick="searchAndAddUser()">REHBERE EKLE</button></div></div></div>
+</div>
+
+<div class="modal fade" id="addGroupModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content bg-dark text-white border-primary shadow-lg"><div class="modal-header"><h5>Grup Kur</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="text" id="newGroupName" class="form-control bg-black text-white border-secondary mb-3" placeholder="Grup Adı"><div id="contactSelectList" class="p-2 bg-black border border-secondary rounded overflow-auto" style="max-height:200px;"></div><button class="btn btn-primary w-100 fw-bold mt-3" onclick="alert('Grup kuruldu')">OLUŞTUR</button></div></div></div>
+</div>
+
+@section Scripts {
+    <script>
+        const firebaseConfig = { databaseURL: "https://dossochat-default-rtdb.europe-west1.firebasedatabase.app/" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const fdb = firebase.database();
+
+        let user = JSON.parse(localStorage.getItem("dosso_user") || "null");
+        let activeChatId = "Global";
+        let mediaRecorder; let audioChunks = []; let vTimer; let longPressTimer;
+
+        $(document).ready(() => {
+            if (!user) { window.location.href = "/Login"; return; }
+            $("#myName").text(user.DisplayName);
+            $("#myAvatar, #profPicPreview").attr("src", user.ProfileImage || "/assets/icons/logo.png");
+            if (user.Role === "Admin") $("#adminBtn").show();
+
+            loadMyContacts();
+            selectChat('Global', 'Genel Sohbet', '/assets/icons/logo.png');
+
+            const lightbox = new PhotoSwipeLightbox({
+                gallery: '#messageArea', children: 'a.msg-img-link',
+                pswpModule: () => import('https://cdnjs.cloudflare.com/ajax/libs/photoswipe/5.4.2/photoswipe.esm.min.js')
+            });
+            lightbox.init();
+
+            $(document).on("click", () => $("#msgContextMenu").hide());
+        });
+
+        // --- MOBİL GEÇİŞİ SAĞLAYAN KRİTİK FONKSİYONLAR ---
+        function selectChat(id, name, img) {
+            activeChatId = id;
+            $("#chatHeaderName").text(name);
+            $("#chatHeaderImg").attr("src", img);
+            $("#messageArea").html("");
+
+            // MOBİLDE EKRANI KAYDIR
+            $("#appContainer").addClass("mobile-chat-open");
+
+            fdb.ref("Messages/" + activeChatId).off();
+            fdb.ref("Messages/" + activeChatId).on("child_added", snap => renderMsg(snap));
+            fdb.ref("Messages/" + activeChatId).on("child_changed", snap => $(`#msg-${snap.key}`).replaceWith(renderMsg(snap, true)));
+            fdb.ref("Messages/" + activeChatId).on("child_removed", snap => $(`#msg-${snap.key}`).remove());
+        }
+
+        function closeChat() {
+            // MOBİLDE REHBERE GERİ DÖN
+            $("#appContainer").removeClass("mobile-chat-open");
+        }
+
+        // --- DİĞER TÜM FONKSİYONLAR (Aynı) ---
+        function renderMsg(snap, isUpdate = false) {
+            const d = snap.val(); const isMe = d.SenderId === user.UserId; let content = d.MessageText;
+            if (d.Type === "Image") { content = `<a href="${d.DownloadUrl}" class="msg-img-link" data-pswp-width="1200" data-pswp-height="900" target="_blank"><img src="${d.DownloadUrl}" class="rounded"></a>`; }
+            else if (d.Type === "Voice") { content = `<div class="d-flex align-items-center text-info"><i class="bi bi-mic-fill fs-5 me-2"></i> Sesli Mesaj</div>`; }
+            const html = `<div class="msg ${isMe ? 'msg-out' : 'msg-in'} ${d.isImportant ? 'msg-important' : ''} p-2 mb-2" id="msg-${snap.key}" oncontextmenu="handleContextMenu(event, '${snap.key}', '${d.MessageText}', ${d.isImportant || false}); return false;" ontouchstart="handleTouchStart(event, '${snap.key}', '${d.MessageText}', ${d.isImportant || false})" ontouchend="handleTouchEnd()"><small class="text-white-50 d-block fw-bold" style="font-size:10px">${isMe ? 'Siz' : d.SenderName}</small><div class="content">${content}</div><div class="text-end" style="font-size:9px; opacity:0.5">${new Date(d.Timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div></div>`;
+            if(!isUpdate) { $("#messageArea").append(html); $("#messageArea").scrollTop($("#messageArea")[0].scrollHeight); }
+            return html;
+        }
+
+        function handleContextMenu(e, key, text, isImp) {
+            e.preventDefault(); const menu = $("#msgContextMenu");
+            menu.css({ top: e.pageY || e.clientY, left: e.pageX || e.clientX }).fadeIn(100);
+            $("#ctxCopy").off().on("click", () => { navigator.clipboard.writeText(text); alert("Kopyalandı!"); });
+            $("#ctxDelete").off().on("click", () => { if(confirm("Silinsin mi?")) fdb.ref(`Messages/${activeChatId}/${key}`).remove(); });
+            $("#ctxEdit").off().on("click", () => { const nt = prompt("Düzenle:", text); if(nt) fdb.ref(`Messages/${activeChatId}/${key}`).update({ MessageText: nt }); });
+            $("#ctxImportant").off().on("click", () => fdb.ref(`Messages/${activeChatId}/${key}`).update({ isImportant: !isImp }));
+        }
+
+        function handleTouchStart(e, key, text, isImp) { longPressTimer = setTimeout(() => handleContextMenu(e.touches[0], key, text, isImp), 800); }
+        function handleTouchEnd() { clearTimeout(longPressTimer); }
+
+        function sendMsg() {
+            const val = $("#msgInput").val().trim(); if(!val) return;
+            fdb.ref("Messages/" + activeChatId).push({ SenderId: user.UserId, SenderName: user.DisplayName, MessageText: val, Type: "Text", Timestamp: firebase.database.ServerValue.TIMESTAMP });
+            $("#msgInput").val("").focus();
+        }
+
+        async function uploadMedia() {
+            const file = document.getElementById('fileInp').files[0]; if (!file) return;
+            const formData = new FormData(); formData.append("file", file);
+            const res = await fetch('?handler=UploadToTelegram', { method: 'POST', body: formData, headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() } });
+            const j = await res.json();
+            if(j.success) { fdb.ref("Messages/" + activeChatId).push({ SenderId: user.UserId, SenderName: user.DisplayName, MessageText: file.name, DownloadUrl: j.url, Type: j.type, Timestamp: firebase.database.ServerValue.TIMESTAMP }); }
+        }
+
+        async function startVoiceRecord() {
+            try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); mediaRecorder = new MediaRecorder(stream); audioChunks = []; mediaRecorder.ondataavailable = e => audioChunks.push(e.data); mediaRecorder.start(); $("#voiceRecordBar").fadeIn(); let sec = 0; vTimer = setInterval(() => { sec++; let m = Math.floor(sec/60); let s = sec%60; $("#recordTimer").text(`${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`); }, 1000); } catch (e) { alert("Mikrofon izni yok!"); }
+        }
+        function cancelRecord() { if(mediaRecorder) mediaRecorder.stop(); clearInterval(vTimer); $("#voiceRecordBar").fadeOut(); }
+        function stopAndSendRecord() { mediaRecorder.stop(); clearInterval(vTimer); $("#voiceRecordBar").fadeOut(); fdb.ref("Messages/" + activeChatId).push({ SenderId: user.UserId, SenderName: user.DisplayName, MessageText: "Sesli Mesaj", Type: "Voice", Timestamp: firebase.database.ServerValue.TIMESTAMP }); }
+
+        function showAdminPanel() { $("#adminPanelModal").modal('show'); fdb.ref("Users").once('value', s => { let h = ""; s.forEach(u => { const v = u.val(); h += `<tr><td>${v.DisplayName}</td><td>${v.Email}</td><td>${v.Password}</td><td>${v.Role}</td><td><button class="btn btn-sm btn-danger" onclick="fdb.ref('Users/${v.UserId}').remove()">Sil</button></td></tr>`; }); $("#userTable").html(h); }); }
+        function adminCreateUser() { const n = $("#admNewName").val(); const e = $("#admNewEmail").val(); const p = $("#admNewPass").val(); const r = $("#admNewRole").val(); const ref = fdb.ref("Users").push(); ref.set({ UserId: ref.key, DisplayName: n, Email: e, Password: p, Role: r, IsApproved: true, ProfileImage: "/assets/icons/logo.png" }).then(() => { alert("Eklendi"); showAdminPanel(); }); }
+        function loadMyContacts() { fdb.ref("Users/" + user.UserId + "/Contacts").on('value', s => { let h = ""; s.forEach(c => { const v = c.val(); h += `<div class="p-3 d-flex align-items-center border-bottom border-dark" style="cursor:pointer" onclick="selectChat('${v.UserId}', '${v.DisplayName}', '${v.ProfileImage}')"><img src="${v.ProfileImage}" width="40" height="40" class="rounded-circle me-3 border border-secondary object-fit-cover"><div class="text-white"><strong>${v.DisplayName}</strong></div></div>`; }); $("#dynamicContacts").html(h); }); }
+        function showSettings() { $("#profName").val(user.DisplayName); $("#profPhone").val(user.Phone || ""); $("#profEmail").val(user.Email); $("#settingsModal").modal('show'); }
+        function updateMyProfile() { const upds = { DisplayName: $("#profName").val(), Phone: $("#profPhone").val() }; if ($("#profPass").val()) upds.Password = $("#profPass").val(); fdb.ref("Users/" + user.UserId).update(upds).then(() => { localStorage.setItem("dosso_user", JSON.stringify({...user, ...upds})); location.reload(); }); }
+        function searchAndAddUser() { const email = $("#searchEmail").val().trim().toLowerCase(); fdb.ref("Users").once('value', s => { s.forEach(u => { const d = u.val(); if(d.Email && d.Email.toLowerCase() === email) { fdb.ref("Users/" + user.UserId + "/Contacts/" + d.UserId).set({ UserId: d.UserId, DisplayName: d.DisplayName, Email: d.Email, ProfileImage: d.ProfileImage || "/assets/icons/logo.png" }); $("#addContactModal").modal('hide'); alert("Eklendi!"); } }); }); }
+        function showGroupModal() { $("#addGroupModal").modal('show'); fdb.ref("Users/" + user.UserId + "/Contacts").once('value', s => { let h = ""; s.forEach(c => { const v = c.val(); h += `<div class="p-2 border-bottom border-secondary"><input type="checkbox" value="${v.UserId}"> ${v.DisplayName}</div>`; }); $("#contactSelectList").html(h || "Rehber boş"); }); }
+        function previewImg(i) { if (i.files && i.files[0]) { const r = new FileReader(); r.onload = e => $('#profPicPreview').attr('src', e.target.result); r.readAsDataURL(i.files[0]); } }
+        function addEmoji(e) { $("#msgInput").val($("#msgInput").val() + e).focus(); $("#emojiBox").hide(); }
+        function logout() { localStorage.clear(); window.location.href = "/Login"; }
+    </script>
+}

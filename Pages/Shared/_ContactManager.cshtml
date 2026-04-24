@@ -1,0 +1,36 @@
+﻿<!-- Kişi Ekle (Email ile) -->
+<div class="modal fade" id="addContactModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-info">
+            <div class="modal-header border-info">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Kişi Ekle (Email ile)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">Sistemde kayıtlı olan personelin email adresini girin.</p>
+                <input type="email" id="searchEmail" class="form-control bg-dark text-white border-secondary mb-3" placeholder="örnek: ahmet@dossochat.com">
+                <button class="btn btn-info w-100 fw-bold" onclick="searchAndAddUser()">REHBERE EKLE</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grup Kur (Rehberden Seçim) -->
+<div class="modal fade" id="addGroupModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-primary">
+            <div class="modal-header border-primary">
+                <h5 class="modal-title"><i class="bi bi-people me-2"></i>Grup Oluştur</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="newGroupName" class="form-control bg-dark text-white border-secondary mb-3" placeholder="Grup Adı">
+                <h6>Kişi Seçin:</h6>
+                <div id="contactSelectList" class="overflow-auto mb-3" style="max-height: 200px;">
+                    <!-- Rehberdeki kişiler buraya gelecek -->
+                </div>
+                <button class="btn btn-primary w-100 fw-bold" onclick="createNewGroup()">GRUBU OLUŞTUR</button>
+            </div>
+        </div>
+    </div>
+</div>
