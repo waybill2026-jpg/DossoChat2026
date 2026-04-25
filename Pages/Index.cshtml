@@ -347,6 +347,38 @@
 
 <div class="modal fade" id="addContactModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content bg-dark text-white border-info"><div class="modal-header"><h5>Kişi Ekle</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div><div class="modal-body"><input type="email" id="searchEmail" class="form-control bg-black text-white mb-3" placeholder="Email adresi..."><button class="btn btn-info w-100" onclick="searchAndAddUser()">REHBERE EKLE</button></div></div></div></div>
 
+<!-- PWA Yükleme Çubuğu (Varsayılan olarak gizli) -->
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Chrome'un kendi otomatik kutusunu engelle (bizimkini çıkaracağız)
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // Bizim mavi yükleme çubuğunu göster
+    $("#pwaInstallBanner").fadeIn();
+});
+
+async function installPWA() {
+    if (deferredPrompt) {
+        // Yükleme kutusunu tetikle
+        deferredPrompt.prompt();
+        
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            console.log('Kullanıcı PWA yüklemeyi kabul etti');
+        }
+        deferredPrompt = null;
+        $("#pwaInstallBanner").fadeOut();
+    }
+}
+
+// Uygulama yüklendikten sonra çubuğu gizle
+window.addEventListener('appinstalled', () => {
+    $("#pwaInstallBanner").fadeOut();
+    deferredPrompt = null;
+});
+
 @section Scripts {
     <script>
         const firebaseConfig = { databaseURL: "https://dossochat-default-rtdb.europe-west1.firebasedatabase.app/" };
